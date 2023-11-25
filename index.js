@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -24,14 +24,41 @@ async function run() {
 
     const reviewCollection = client.db("emDB").collection("reviews");
     const servicesCollection = client.db("emDB").collection("services");
+    const usersCollection = client.db("emDB").collection("users");
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
+
     app.get("/services", async (req, res) => {
       const result = await servicesCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.patch("/user-verification/:id", async (req, res) => {
+      const id = req.params.id;
+      const newVerification = req.body;
+      console.log(newVerification);
+      const query = { _id: new ObjectId(id) };
+      const verified = {
+        $set: {
+          verified: !(newVerification.verified),
+        },
+      };
+      const result = usersCollection.updateOne(query, verified);
       res.send(result);
     });
 
