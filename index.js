@@ -55,6 +55,31 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/usersInfo/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.patch("/userTask/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const options = { upsert: true };
+      const newTasks = req.body;
+      const updatedTask = {
+        $set: {
+          tasks: newTasks,
+        },
+      };
+      const result = await usersCollection.updateOne(
+        query,
+        updatedTask,
+        options
+      );
+      res.send(result);
+    });
+
     app.patch("/user-verification/:id", async (req, res) => {
       const id = req.params.id;
       const newVerification = req.body;
