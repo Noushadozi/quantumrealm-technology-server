@@ -48,6 +48,13 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.patch("/user-verification/:id", async (req, res) => {
       const id = req.params.id;
       const newVerification = req.body;
@@ -55,10 +62,28 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const verified = {
         $set: {
-          verified: !(newVerification.verified),
+          verified: !newVerification.verified,
         },
       };
       const result = usersCollection.updateOne(query, verified);
+      res.send(result);
+    });
+
+    app.patch("/user-payment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const newPayments = req.body;
+      const options = { upsert: true };
+      const updatedPayments = {
+        $set: {
+          payments: newPayments,
+        },
+      };
+      const result = await usersCollection.updateOne(
+        query,
+        updatedPayments,
+        options
+      );
       res.send(result);
     });
 
