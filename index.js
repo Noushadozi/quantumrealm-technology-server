@@ -9,6 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.x4h5cla.mongodb.net/?retryWrites=true&w=majority`;
+
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
@@ -43,8 +44,41 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/all-verified-employee", async (req, res) => {
+      const query1 = { role: "Employee" } && { verified: true };
+      const query2 = { role: "HR" };
+      const result = await usersCollection
+        .find({ $or: [query1, query2] })
+        .toArray();
+      res.send(result);
+    });
+
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.patch("/user-promote/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updateUser = {
+        $set: {
+          role: "HR",
+        },
+      };
+      const result = await usersCollection.updateOne(
+        query,
+        updateUser,
+        options
+      );
+      res.send(result);
+    });
+
+    app.delete("/fire-user/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
 
