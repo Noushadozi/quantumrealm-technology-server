@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
+var jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 app.use(cors());
@@ -50,14 +51,28 @@ async function run() {
       const result = await usersCollection
         .find({ $or: [query1, query2] })
         .toArray();
-      res.send(result);
-    });
-
+        res.send(result);
+      });
+      
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
 
+    app.get("/users/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/usersInfo/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+    
     app.patch("/user-promote/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -82,19 +97,6 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await usersCollection.find(query).toArray();
-      res.send(result);
-    });
-
-    app.get("/usersInfo/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
-      const result = await usersCollection.find(query).toArray();
-      res.send(result);
-    });
 
     app.patch("/userTask/:email", async (req, res) => {
       const email = req.params.email;
