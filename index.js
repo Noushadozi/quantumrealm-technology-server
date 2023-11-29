@@ -3,11 +3,18 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
-var jwt = require('jsonwebtoken');
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5174", "https://api.imgbb.com"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.x4h5cla.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -19,6 +26,22 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+  console.log("token in the middleware", token);
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).send({ message: "unauthorized access" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -27,6 +50,26 @@ async function run() {
     const reviewCollection = client.db("emDB").collection("reviews");
     const servicesCollection = client.db("emDB").collection("services");
     const usersCollection = client.db("emDB").collection("users");
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      // console.log(token);
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+
+    app.post("/logout", async (req, res) => {
+      const user = req.body;
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
 
     app.get("/reviews", async (req, res) => {
       const cursor = reviewCollection.find();
@@ -45,15 +88,19 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/all-verified-employee", async (req, res) => {
+    app.get("/all-verified-employee", verifyToken, async (req, res) => {
+      console.log(
+        "browser theke direct ashtese cookies back end a",
+        req.cookies
+      );
       const query1 = { role: "Employee" } && { verified: true };
       const query2 = { role: "HR" };
       const result = await usersCollection
         .find({ $or: [query1, query2] })
         .toArray();
-        res.send(result);
-      });
-      
+      res.send(result);
+    });
+
     app.get("/users", async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
@@ -72,7 +119,7 @@ async function run() {
       const result = await usersCollection.find(query).toArray();
       res.send(result);
     });
-    
+
     app.patch("/user-promote/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -96,7 +143,6 @@ async function run() {
       const result = await usersCollection.deleteOne(query);
       res.send(result);
     });
-
 
     app.patch("/userTask/:email", async (req, res) => {
       const email = req.params.email;
