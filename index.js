@@ -9,7 +9,11 @@ const port = process.env.PORT || 5000;
 
 app.use(
   cors({
-    origin: ["http://localhost:5174", "https://api.imgbb.com"],
+    origin: [
+      "http://localhost:5174",
+      "https://api.imgbb.com",
+      "http://localhost:5173",
+    ],
     credentials: true,
   })
 );
@@ -29,7 +33,6 @@ const client = new MongoClient(uri, {
 
 const verifyToken = (req, res, next) => {
   const token = req?.cookies?.token;
-  console.log("token in the middleware", token);
   if (!token) {
     return res.status(401).send({ message: "unauthorized access" });
   }
@@ -51,12 +54,44 @@ async function run() {
     const servicesCollection = client.db("emDB").collection("services");
     const usersCollection = client.db("emDB").collection("users");
 
+    const verifyAdmin = async (req, res, next) => {
+      const email = req?.user?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.role === "Admin";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    const verifyHR = async (req, res, next) => {
+      const email = req?.user?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.role === "HR";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
+    const verifyEmployee = async (req, res, next) => {
+      const email = req?.user?.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const isAdmin = user?.role === "Employee";
+      if (!isAdmin) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      next();
+    };
+
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
-      // console.log(token);
       res
         .cookie("token", token, {
           httpOnly: true,
@@ -88,21 +123,23 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/all-verified-employee", verifyToken, async (req, res) => {
-      console.log(
-        "browser theke direct ashtese cookies back end a",
-        req.cookies
-      );
-      const query1 = { role: "Employee" } && { verified: true };
-      const query2 = { role: "HR" };
-      const result = await usersCollection
-        .find({ $or: [query1, query2] })
-        .toArray();
-      res.send(result);
-    });
+    app.get(
+      "/all-verified-employee",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const query1 = { role: "Employee" } && { verified: true };
+        const query2 = { role: "HR" };
+        const result = await usersCollection
+          .find({ $or: [query1, query2] })
+          .toArray();
+        res.send(result);
+      }
+    );
 
-    app.get("/users", async (req, res) => {
-      const result = await usersCollection.find().toArray();
+    app.get("/employees", verifyToken, verifyHR, async (req, res) => {
+      const query = { role: "Employee" };
+      const result = await usersCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -112,6 +149,18 @@ async function run() {
       const result = await usersCollection.find(query).toArray();
       res.send(result);
     });
+
+    app.get(
+      "/privateInfo/:email",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email: email };
+        const result = await usersCollection.find(query).toArray();
+        res.send(result);
+      }
+    );
 
     app.get("/usersInfo/:email", async (req, res) => {
       const email = req.params.email;
@@ -144,28 +193,32 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/userTask/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
-      const options = { upsert: true };
-      const newTasks = req.body;
-      const updatedTask = {
-        $set: {
-          tasks: newTasks,
-        },
-      };
-      const result = await usersCollection.updateOne(
-        query,
-        updatedTask,
-        options
-      );
-      res.send(result);
-    });
+    app.patch(
+      "/userTask/:email",
+      verifyToken,
+      verifyEmployee,
+      async (req, res) => {
+        const email = req.params.email;
+        const query = { email: email };
+        const options = { upsert: true };
+        const newTasks = req.body;
+        const updatedTask = {
+          $set: {
+            tasks: newTasks,
+          },
+        };
+        const result = await usersCollection.updateOne(
+          query,
+          updatedTask,
+          options
+        );
+        res.send(result);
+      }
+    );
 
-    app.patch("/user-verification/:id", async (req, res) => {
+    app.patch("/user-verification/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const newVerification = req.body;
-      console.log(newVerification);
       const query = { _id: new ObjectId(id) };
       const verified = {
         $set: {
@@ -176,7 +229,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/user-payment/:id", async (req, res) => {
+    app.patch("/user-payment/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const newPayments = req.body;
