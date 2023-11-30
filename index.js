@@ -10,9 +10,8 @@ const port = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
-      "http://localhost:5174",
-      "https://api.imgbb.com",
-      "http://localhost:5173",
+      "https://employee-management-31485.web.app",
+      "https://employee-management-31485.firebaseapp.com/",
     ],
     credentials: true,
   })
@@ -48,11 +47,10 @@ const verifyToken = (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
 
-    const reviewCollection = client.db("emDB").collection("reviews");
-    const servicesCollection = client.db("emDB").collection("services");
-    const usersCollection = client.db("emDB").collection("users");
+    const reviewsCollection = client.db("qtDB").collection("reviews");
+    const servicesCollection = client.db("qtDB").collection("services");
+    const usersCollection = client.db("qtDB").collection("users");
 
     const verifyAdmin = async (req, res, next) => {
       const email = req?.user?.email;
@@ -107,7 +105,7 @@ async function run() {
     });
 
     app.get("/reviews", async (req, res) => {
-      const cursor = reviewCollection.find();
+      const cursor = reviewsCollection.find();
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -247,11 +245,6 @@ async function run() {
       res.send(result);
     });
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
   } finally {
   }
 }
