@@ -10,8 +10,9 @@ const port = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
-      "https://employee-management-31485.web.app",
-      "https://employee-management-31485.firebaseapp.com/",
+      "http://localhost:5173",
+      "https://quantamrealm-technology.web.app",
+      "https://quantamrealm-technology.firebaseapp.com",
     ],
     credentials: true,
   })
@@ -244,7 +245,6 @@ async function run() {
       );
       res.send(result);
     });
-
   } finally {
   }
 }
