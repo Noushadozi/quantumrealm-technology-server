@@ -52,6 +52,7 @@ async function run() {
     const reviewsCollection = client.db("qtDB").collection("reviews");
     const servicesCollection = client.db("qtDB").collection("services");
     const usersCollection = client.db("qtDB").collection("users");
+    const tasksCollection = client.db("qtDB").collection("tasks");
 
     const verifyAdmin = async (req, res, next) => {
       const email = req?.user?.email;
@@ -228,7 +229,7 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/user-payment/:id", verifyToken, async (req, res) => {
+    app.patch("/user-payment/:id", verifyToken, verifyHR, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const newPayments = req.body;
@@ -241,6 +242,80 @@ async function run() {
       const result = await usersCollection.updateOne(
         query,
         updatedPayments,
+        options
+      );
+      res.send(result);
+    });
+
+    app.get("/tasks", async (req, res) => {
+      let query = {};
+      if (req.query.email) {
+        query = { email: req.query.email };
+      }
+      // console.log(query);
+      const result = await tasksCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get(`/task/:id`, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await tasksCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.delete(`/task/:id`, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await tasksCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.post("/tasks", async (req, res) => {
+      const task = req.body;
+      const result = await tasksCollection.insertOne(task);
+      res.send(result);
+    });
+
+    app.patch(`/taskUpdate/:id`, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      console.log(query);
+      const options = { upsert: true };
+      const newTask = req.body;
+      console.log(newTask);
+      const updatedTask = {
+        $set: {
+          title: newTask.title,
+          date: newTask.date,
+          description: newTask.description,
+          duration: newTask.duration,
+          email: newTask.email,
+          priority: newTask.priority,
+          status: newTask.status,
+        },
+      };
+      const result = await tasksCollection.updateOne(
+        query,
+        updatedTask,
+        options
+      );
+      res.send(result);
+    });
+
+    app.patch("/taskStatus/:id", async (req, res) => {
+      const status = req.body;
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      const updatedTask = {
+        $set: {
+          status: status.status,
+        },
+      };
+      const result = await tasksCollection.updateOne(
+        query,
+        updatedTask,
         options
       );
       res.send(result);
